@@ -1,0 +1,14 @@
+/Users/vadim/Documents/University/dash_proj/PiClient/bin/Debug/net8.0-windows/PiClient
+/Users/vadim/Documents/University/dash_proj/PiClient/bin/Debug/net8.0-windows/PiClient.deps.json
+/Users/vadim/Documents/University/dash_proj/PiClient/bin/Debug/net8.0-windows/PiClient.runtimeconfig.json
+/Users/vadim/Documents/University/dash_proj/PiClient/bin/Debug/net8.0-windows/PiClient.dll
+/Users/vadim/Documents/University/dash_proj/PiClient/bin/Debug/net8.0-windows/PiClient.pdb
+/Users/vadim/Documents/University/dash_proj/PiClient/obj/Debug/net8.0-windows/PiClient.GeneratedMSBuildEditorConfig.editorconfig
+/Users/vadim/Documents/University/dash_proj/PiClient/obj/Debug/net8.0-windows/PiClient.AssemblyInfoInputs.cache
+/Users/vadim/Documents/University/dash_proj/PiClient/obj/Debug/net8.0-windows/PiClient.AssemblyInfo.cs
+/Users/vadim/Documents/University/dash_proj/PiClient/obj/Debug/net8.0-windows/PiClient.csproj.CoreCompileInputs.cache
+/Users/vadim/Documents/University/dash_proj/PiClient/obj/Debug/net8.0-windows/PiClient.dll
+/Users/vadim/Documents/University/dash_proj/PiClient/obj/Debug/net8.0-windows/refint/PiClient.dll
+/Users/vadim/Documents/University/dash_proj/PiClient/obj/Debug/net8.0-windows/PiClient.pdb
+/Users/vadim/Documents/University/dash_proj/PiClient/obj/Debug/net8.0-windows/PiClient.genruntimeconfig.cache
+/Users/vadim/Documents/University/dash_proj/PiClient/obj/Debug/net8.0-windows/ref/PiClient.dll

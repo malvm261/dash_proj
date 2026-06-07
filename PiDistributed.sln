@@ -1,0 +1,48 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PiServer", "PiServer\PiServer.csproj", "{8441D62D-92D5-4C89-AAD8-A8A4FAEB6B20}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PiClient", "PiClient\PiClient.csproj", "{D1646579-DCB8-43C3-BBB0-CBBC3610B732}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8441D62D-92D5-4C89-AAD8-A8A4FAEB6B20}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8441D62D-92D5-4C89-AAD8-A8A4FAEB6B20}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8441D62D-92D5-4C89-AAD8-A8A4FAEB6B20}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8441D62D-92D5-4C89-AAD8-A8A4FAEB6B20}.Debug|x64.Build.0 = Debug|Any CPU
+		{8441D62D-92D5-4C89-AAD8-A8A4FAEB6B20}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{8441D62D-92D5-4C89-AAD8-A8A4FAEB6B20}.Debug|x86.Build.0 = Debug|Any CPU
+		{8441D62D-92D5-4C89-AAD8-A8A4FAEB6B20}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8441D62D-92D5-4C89-AAD8-A8A4FAEB6B20}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8441D62D-92D5-4C89-AAD8-A8A4FAEB6B20}.Release|x64.ActiveCfg = Release|Any CPU
+		{8441D62D-92D5-4C89-AAD8-A8A4FAEB6B20}.Release|x64.Build.0 = Release|Any CPU
+		{8441D62D-92D5-4C89-AAD8-A8A4FAEB6B20}.Release|x86.ActiveCfg = Release|Any CPU
+		{8441D62D-92D5-4C89-AAD8-A8A4FAEB6B20}.Release|x86.Build.0 = Release|Any CPU
+		{D1646579-DCB8-43C3-BBB0-CBBC3610B732}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D1646579-DCB8-43C3-BBB0-CBBC3610B732}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D1646579-DCB8-43C3-BBB0-CBBC3610B732}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D1646579-DCB8-43C3-BBB0-CBBC3610B732}.Debug|x64.Build.0 = Debug|Any CPU
+		{D1646579-DCB8-43C3-BBB0-CBBC3610B732}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D1646579-DCB8-43C3-BBB0-CBBC3610B732}.Debug|x86.Build.0 = Debug|Any CPU
+		{D1646579-DCB8-43C3-BBB0-CBBC3610B732}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D1646579-DCB8-43C3-BBB0-CBBC3610B732}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D1646579-DCB8-43C3-BBB0-CBBC3610B732}.Release|x64.ActiveCfg = Release|Any CPU
+		{D1646579-DCB8-43C3-BBB0-CBBC3610B732}.Release|x64.Build.0 = Release|Any CPU
+		{D1646579-DCB8-43C3-BBB0-CBBC3610B732}.Release|x86.ActiveCfg = Release|Any CPU
+		{D1646579-DCB8-43C3-BBB0-CBBC3610B732}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
