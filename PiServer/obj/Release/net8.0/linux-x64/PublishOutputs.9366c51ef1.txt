@@ -1,2 +1,0 @@
-/Users/vadim/Documents/University/dash_proj/publish/server-linux/PiServer.pdb
-/Users/vadim/Documents/University/dash_proj/publish/server-linux/PiServer
