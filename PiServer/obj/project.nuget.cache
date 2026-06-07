@@ -1,12 +1,15 @@
 {
   "version": 2,
-  "dgSpecHash": "GW/JWsJVi64=",
+  "dgSpecHash": "1rwL8cY42WI=",
   "success": true,
   "projectFilePath": "/Users/vadim/Documents/University/dash_proj/PiServer/PiServer.csproj",
   "expectedPackageFiles": [
+    "/Users/vadim/.nuget/packages/microsoft.net.illink.tasks/8.0.23/microsoft.net.illink.tasks.8.0.23.nupkg.sha512",
     "/Users/vadim/.nuget/packages/microsoft.netcore.app.ref/8.0.23/microsoft.netcore.app.ref.8.0.23.nupkg.sha512",
+    "/Users/vadim/.nuget/packages/microsoft.netcore.app.runtime.linux-x64/8.0.23/microsoft.netcore.app.runtime.linux-x64.8.0.23.nupkg.sha512",
     "/Users/vadim/.nuget/packages/microsoft.aspnetcore.app.ref/8.0.23/microsoft.aspnetcore.app.ref.8.0.23.nupkg.sha512",
-    "/Users/vadim/.nuget/packages/microsoft.netcore.app.host.osx-arm64/8.0.23/microsoft.netcore.app.host.osx-arm64.8.0.23.nupkg.sha512"
+    "/Users/vadim/.nuget/packages/microsoft.aspnetcore.app.runtime.linux-x64/8.0.23/microsoft.aspnetcore.app.runtime.linux-x64.8.0.23.nupkg.sha512",
+    "/Users/vadim/.nuget/packages/microsoft.netcore.app.host.linux-x64/8.0.23/microsoft.netcore.app.host.linux-x64.8.0.23.nupkg.sha512"
   ],
   "logs": []
 }
