@@ -12,3 +12,4 @@
 /Users/vadim/Documents/University/dash_proj/PiClient/obj/Debug/net8.0-windows/PiClient.pdb
 /Users/vadim/Documents/University/dash_proj/PiClient/obj/Debug/net8.0-windows/PiClient.genruntimeconfig.cache
 /Users/vadim/Documents/University/dash_proj/PiClient/obj/Debug/net8.0-windows/ref/PiClient.dll
+/Users/vadim/Documents/University/dash_proj/PiClient/obj/Debug/net8.0-windows/PiClient.sourcelink.json

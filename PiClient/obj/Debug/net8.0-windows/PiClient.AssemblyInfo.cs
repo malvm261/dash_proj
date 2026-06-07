@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PiClient")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3196bcb31787c83aa7a5da54e2b4e1dd75337d3e")]
 [assembly: System.Reflection.AssemblyProductAttribute("PiClient")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PiClient")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -25,3 +25,4 @@
 /Users/vadim/Documents/University/dash_proj/PiServer/obj/Debug/net8.0/PiServer.genruntimeconfig.cache
 /Users/vadim/Documents/University/dash_proj/PiServer/obj/Debug/net8.0/ref/PiServer.dll
 /Users/vadim/Documents/University/dash_proj/PiServer/bin/Debug/net8.0/PiServer.staticwebassets.runtime.json
+/Users/vadim/Documents/University/dash_proj/PiServer/obj/Debug/net8.0/PiServer.sourcelink.json

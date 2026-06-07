@@ -1,10 +1,15 @@
 // ════════════════════════════════════════════════════════════════════
-//  Узел расчёта числа π (worker-сервер)
+//  Узел распределённого расчёта числа π (worker-сервер)
 //
-//  Принимает от клиента команду "начать расчёт N членов ряда",
-//  считает π параллельно сразу по двум формулам, используя все ядра
-//  процессора (Parallel.For из Task Parallel Library), и отдаёт
-//  текущий прогресс и приближённое значение π по запросу клиента.
+//  Узел НЕ считает весь ряд целиком — клиент присылает ему только
+//  СВОЙ ДИАПАЗОН индексов членов ряда (RangeStart, RangeCount).
+//  Узел считает частичную сумму по обеим формулам для этого диапазона,
+//  используя все ядра процессора (Parallel.For из TPL), и отдаёт
+//  частичный результат + прогресс по запросу клиента.
+//
+//  Клиент затем складывает частичные суммы СО ВСЕХ узлов в одно
+//  общее значение π — поэтому чем больше узлов, тем быстрее считается
+//  итоговый результат (настоящие распределённые вычисления).
 // ════════════════════════════════════════════════════════════════════
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,14 +28,14 @@ app.UseCors();
 
 var calculator = app.Services.GetRequiredService<PiCalculator>();
 
-// Запустить расчёт на этом узле: клиент присылает количество членов ряда
+// Получить от координатора (клиента) свой диапазон и начать его считать
 app.MapPost("/api/start", (StartRequest req, PiCalculator calc) =>
 {
-    calc.Start(req.TotalIterations);
+    calc.Start(req.RangeStart, req.RangeCount);
     return Results.Ok();
 });
 
-// Текущий статус узла: прогресс и приближённое значение π по каждой формуле
+// Текущий статус узла: прогресс по своему диапазону + частичные суммы рядов
 app.MapGet("/api/status", (PiCalculator calc) => Results.Ok(calc.GetStatus()));
 
 // Остановить расчёт (например, по нажатию "Стоп" на клиенте)
@@ -41,34 +46,38 @@ app.MapPost("/api/stop", (PiCalculator calc) =>
 });
 
 Console.WriteLine("════════════════════════════════════════════");
-Console.WriteLine("   Узел расчёта числа π (worker-сервер)");
+Console.WriteLine("   Узел распределённого расчёта числа π");
 Console.WriteLine("════════════════════════════════════════════");
 Console.WriteLine($"Адрес:    http://0.0.0.0:5050");
 Console.WriteLine($"Ядер CPU: {Environment.ProcessorCount}");
-Console.WriteLine("Ожидание команды на запуск от клиента...\n");
+Console.WriteLine("Ожидание задания (диапазона) от координатора...\n");
 
 app.Run();
 
 // ════════════════════ Модели обмена данными (JSON) ════════════════════
 
-// Запрос на запуск расчёта — сколько членов ряда нужно просуммировать
-record StartRequest(long TotalIterations);
+// Задание узлу: посчитать члены ряда с индексами [RangeStart .. RangeStart + RangeCount)
+record StartRequest(long RangeStart, long RangeCount);
 
-// Состояние расчёта по одной формуле: текущее приближение π, прогресс (%) и сколько членов посчитано
-record FormulaStatus(double Pi, double Progress, long IterationsDone);
+// Статус узла: его диапазон, сколько уже посчитано и частичные суммы по обеим формулам.
+// ВАЖНО: это ЧАСТИЧНЫЕ суммы только по диапазону этого узла — не значения π!
+// Итоговое π координатор получает, складывая частичные суммы со всех узлов.
+record NodeStatus(
+    bool IsRunning,
+    long RangeStart,
+    long RangeCount,
+    long IterationsDone,
+    double Progress,
+    double LeibnizPartialSum,
+    double NilakanthaPartialSum);
 
-// Полный статус узла: обе формулы сразу + признак "ещё считает"
-record NodeStatus(bool IsRunning, long TotalIterations, FormulaStatus Leibniz, FormulaStatus Nilakantha);
-
-// ════════════════════ Класс, выполняющий расчёт π ════════════════════
+// ════════════════════ Класс, считающий частичную сумму ряда ════════════════════
 //
-//  Обе формулы считаются параллельно в отдельных задачах (Task.Run),
-//  а внутри каждой задачи диапазон членов ряда разбивается на блоки и
-//  обрабатывается через Parallel.For — TPL сам распределяет блок между
-//  всеми логическими ядрами процессора.
-//
-//  Промежуточные суммы и счётчики защищены блокировкой (lock), поэтому
-//  GET /api/status можно безопасно вызывать в любой момент во время счёта.
+//  Диапазон делится на блоки по ChunkSize членов; каждый блок обрабатывается
+//  через Parallel.For — TPL сам распределяет блок между всеми логическими
+//  ядрами процессора (схема map/reduce: своя локальная сумма у каждого потока,
+//  затем сложение под блокировкой). После каждого блока обновляется прогресс,
+//  поэтому GET /api/status можно безопасно вызывать в любой момент во время счёта.
 
 class PiCalculator
 {
@@ -76,39 +85,37 @@ class PiCalculator
 
     private readonly object _lock = new();
 
-    private long _totalIterations;
+    private long _rangeStart;
+    private long _rangeCount;
     private bool _isRunning;
     private CancellationTokenSource? _cts;
 
-    // Накопленная сумма ряда и количество обработанных членов — отдельно для каждой формулы
+    // Накопленные частичные суммы по СВОЕМУ диапазону (не итоговое π!)
     private double _leibnizSum;
-    private long _leibnizDone;
     private double _nilakanthaSum;
-    private long _nilakanthaDone;
+    private long _iterationsDone;
 
-    public void Start(long totalIterations)
+    public void Start(long rangeStart, long rangeCount)
     {
-        Stop(); // на случай, если предыдущий расчёт ещё не завершился
+        Stop(); // на случай, если предыдущее задание ещё не завершилось
 
         lock (_lock)
         {
-            _totalIterations = totalIterations;
+            _rangeStart = rangeStart;
+            _rangeCount = rangeCount;
             _leibnizSum = 0;
-            _leibnizDone = 0;
             _nilakanthaSum = 0;
-            _nilakanthaDone = 0;
+            _iterationsDone = 0;
             _isRunning = true;
         }
 
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
 
-        // Запускаем расчёт обеих формул одновременно — каждая в своей фоновой задаче
-        Task.Run(() => RunFormula(totalIterations, token, isLeibniz: true), token);
-        Task.Run(() => RunFormula(totalIterations, token, isLeibniz: false), token);
+        Task.Run(() => RunComputation(rangeStart, rangeCount, token), token);
 
-        Console.WriteLine($"[{Now}] ▶ Старт расчёта: {totalIterations:N0} членов ряда " +
-                          $"(используется {Environment.ProcessorCount} ядер CPU)");
+        Console.WriteLine($"[{Now}] ▶ Получено задание: диапазон [{rangeStart:N0} .. {rangeStart + rangeCount - 1:N0}] " +
+                          $"— {rangeCount:N0} членов, {Environment.ProcessorCount} ядер CPU");
     }
 
     public void Stop()
@@ -121,37 +128,49 @@ class PiCalculator
     {
         lock (_lock)
         {
-            double leibnizPi    = _leibnizSum;             // сумма ряда Лейбница уже даёт приближение π
-            double nilakanthaPi = 3.0 + _nilakanthaSum;    // ряд Нилаканты: π = 3 + сумма
+            double progress = _rangeCount > 0
+                ? Math.Min(100.0, (double)_iterationsDone / _rangeCount * 100.0)
+                : 0.0;
 
             return new NodeStatus(
-                _isRunning,
-                _totalIterations,
-                new FormulaStatus(leibnizPi,    Percent(_leibnizDone,    _totalIterations), _leibnizDone),
-                new FormulaStatus(nilakanthaPi, Percent(_nilakanthaDone, _totalIterations), _nilakanthaDone));
+                _isRunning, _rangeStart, _rangeCount, _iterationsDone, progress,
+                _leibnizSum, _nilakanthaSum);
         }
     }
 
-    // Считает один из рядов блоками по ChunkSize членов, после каждого блока обновляя общий прогресс
-    private void RunFormula(long total, CancellationToken ct, bool isLeibniz)
+    // Считает частичную сумму ОБЕИХ формул для своего диапазона блоками по ChunkSize членов
+    private void RunComputation(long rangeStart, long rangeCount, CancellationToken ct)
     {
         var chunkLock = new object();
 
-        for (long start = 0; start < total; start += ChunkSize)
+        for (long offset = 0; offset < rangeCount; offset += ChunkSize)
         {
-            long count = Math.Min(ChunkSize, total - start);
-            double partialSum = 0;
+            long count = Math.Min(ChunkSize, rangeCount - offset);
+            long chunkStart = rangeStart + offset;
+            double leibnizPartial = 0;
+            double nilakanthaPartial = 0;
 
             try
             {
-                // Parallel.For делит диапазон [0..count) между потоками — задействуются все ядра CPU.
-                // localInit/body/localFinally — стандартная схема параллельного суммирования (map-reduce):
-                // у каждого потока своя локальная сумма, в конце все локальные суммы складываются под блокировкой.
+                // Один проход Parallel.For сразу для двух формул: для каждого индекса k
+                // считаем оба слагаемых и копим их в локальном кортеже потока (local.Leibniz / local.Nilakantha).
+                // В конце каждый поток один раз складывает свои локальные суммы в общие — под блокировкой.
                 Parallel.For(0, (int)count,
                     new ParallelOptions { CancellationToken = ct },
-                    localInit: () => 0.0,
-                    body: (i, _, local) => local + Term(start + i, isLeibniz),
-                    localFinally: local => { lock (chunkLock) partialSum += local; });
+                    localInit: () => (Leibniz: 0.0, Nilakantha: 0.0),
+                    body: (i, _, local) =>
+                    {
+                        long k = chunkStart + i;
+                        return (local.Leibniz + LeibnizTerm(k), local.Nilakantha + NilakanthaTerm(k));
+                    },
+                    localFinally: local =>
+                    {
+                        lock (chunkLock)
+                        {
+                            leibnizPartial += local.Leibniz;
+                            nilakanthaPartial += local.Nilakantha;
+                        }
+                    });
             }
             catch (OperationCanceledException)
             {
@@ -160,45 +179,42 @@ class PiCalculator
 
             lock (_lock)
             {
-                if (isLeibniz) { _leibnizSum += partialSum; _leibnizDone += count; }
-                else           { _nilakanthaSum += partialSum; _nilakanthaDone += count; }
+                _leibnizSum += leibnizPartial;
+                _nilakanthaSum += nilakanthaPartial;
+                _iterationsDone += count;
             }
         }
 
-        // Когда обе формулы досчитаны до конца — расчёт на этом узле завершён
         lock (_lock)
         {
-            if (_leibnizDone >= _totalIterations && _nilakanthaDone >= _totalIterations)
+            if (_iterationsDone >= _rangeCount)
             {
                 _isRunning = false;
-                Console.WriteLine($"[{Now}] ✓ Расчёт завершён: " +
-                                  $"π(Лейбниц)≈{_leibnizSum:F12}   π(Нилаканта)≈{3.0 + _nilakanthaSum:F12}");
+                Console.WriteLine($"[{Now}] ✓ Узел завершил свой диапазон " +
+                                  $"[{rangeStart:N0} .. {rangeStart + rangeCount - 1:N0}]: " +
+                                  $"частичные суммы Лейбниц={_leibnizSum:G10}, Нилаканта={_nilakanthaSum:G10}");
             }
         }
     }
 
-    // Член ряда номер k для выбранной формулы.
-    // Коэффициенты подобраны так, что СУММА членов ряда Лейбница сразу даёт приближение к π,
-    // а для ряда Нилаканты к итоговой сумме нужно прибавить 3.
-    private static double Term(long k, bool isLeibniz)
+    // Член ряда Лейбница номер k (k = 0, 1, 2, ...). Коэффициент 4 включён сразу,
+    // поэтому СУММА ВСЕХ членов ряда (по полному диапазону 0..N) даёт приближение π напрямую:
+    //   π = 4 · Σ (-1)^k / (2k+1)
+    private static double LeibnizTerm(long k)
     {
-        if (isLeibniz)
-        {
-            // π = 4 · Σ (-1)^k / (2k+1),     k = 0, 1, 2, 3, ...
-            double sign = (k % 2 == 0) ? 1.0 : -1.0;
-            return 4.0 * sign / (2.0 * k + 1.0);
-        }
-        else
-        {
-            // π = 3 + Σ (-1)^(n+1) · 4 / (2n·(2n+1)·(2n+2)),     n = 1, 2, 3, ...
-            long n = k + 1;
-            double sign = (n % 2 == 1) ? 1.0 : -1.0;
-            return sign * 4.0 / ((2.0 * n) * (2.0 * n + 1.0) * (2.0 * n + 2.0));
-        }
+        double sign = (k % 2 == 0) ? 1.0 : -1.0;
+        return 4.0 * sign / (2.0 * k + 1.0);
     }
 
-    private static double Percent(long done, long total) =>
-        total > 0 ? Math.Min(100.0, (double)done / total * 100.0) : 0.0;
+    // Член ряда Нилаканты номер k — соответствует n = k+1 = 1, 2, 3, ...
+    // К сумме ВСЕХ членов нужно прибавить 3, чтобы получить π:
+    //   π = 3 + Σ (-1)^(n+1) · 4 / (2n·(2n+1)·(2n+2))
+    private static double NilakanthaTerm(long k)
+    {
+        long n = k + 1;
+        double sign = (n % 2 == 1) ? 1.0 : -1.0;
+        return sign * 4.0 / ((2.0 * n) * (2.0 * n + 1.0) * (2.0 * n + 2.0));
+    }
 
     private static string Now => DateTime.Now.ToString("HH:mm:ss");
 }

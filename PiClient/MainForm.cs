@@ -5,12 +5,16 @@ using System.Text.Json;
 namespace PiClient
 {
     // ════════════════════════════════════════════════════════════════
-    //  Главная форма клиента.
+    //  Главная форма клиента — он же координатор распределённого расчёта.
     //
-    //  Клиент рассылает команду "старт" на список узлов-серверов,
-    //  затем периодически (с заданным интервалом) опрашивает каждый
-    //  узел через HTTP GET /api/status, обновляет таблицу результатов
-    //  и считает усреднённое по всем узлам значение π.
+    //  Общий объём вычислений (число членов ряда) делится на непересекающиеся
+    //  диапазоны — по одному на каждый узел из списка адресов. Каждый узел
+    //  получает СВОЙ диапазон через POST /api/start и считает только его,
+    //  используя все свои ядра. Клиент периодически опрашивает узлы через
+    //  GET /api/status и СКЛАДЫВАЕТ их частичные суммы в одно общее значение π.
+    //
+    //  Поэтому чем больше узлов участвует в расчёте — тем меньше работы
+    //  достаётся каждому, и тем быстрее считается общий итоговый результат.
     // ════════════════════════════════════════════════════════════════
     public partial class MainForm : Form
     {
@@ -22,8 +26,11 @@ namespace PiClient
 
         private CancellationTokenSource? _cts;
 
-        // Для каждого адреса узла храним две строки таблицы — отдельно для каждой формулы
-        private readonly Dictionary<string, (DataGridViewRow Leibniz, DataGridViewRow Nilakantha)> _rows = new();
+        // Строка таблицы для каждого узла (по адресу)
+        private readonly Dictionary<string, DataGridViewRow> _rows = new();
+
+        // Последний полученный статус каждого узла — нужен для пересчёта общего π
+        private readonly Dictionary<string, NodeStatus> _latestStatus = new();
 
         public MainForm()
         {
@@ -46,39 +53,48 @@ namespace PiClient
             long totalIterations = (long)numIterations.Value;
             int intervalSec = (int)numInterval.Value;
 
-            BuildResultRows(addresses);
+            // Делим общий диапазон [0 .. totalIterations) поровну между узлами —
+            // каждому достаётся свой непересекающийся кусок ряда
+            var ranges = SplitRange(totalIterations, addresses.Count);
+            var assignments = addresses
+                .Zip(ranges, (address, range) => (Address: address, Start: range.Start, Count: range.Count))
+                .ToList();
+
+            BuildResultRows(assignments);
+            _latestStatus.Clear();
             progressOverall.Value = 0;
-            lblAveragePi.Text = "Среднее значение π:  —";
+            lblPi1.Text = "π (Лейбниц, общий результат):    —";
+            lblPi2.Text = "π (Нилаканта, общий результат):  —";
 
             _cts = new CancellationTokenSource();
             SetRunningState(isRunning: true);
-            SetStatus("Отправка команды на узлы...", Color.DarkOrange);
+            SetStatus("Раздача диапазонов узлам...", Color.DarkOrange);
 
-            // Рассылаем каждому узлу команду начать расчёт
-            foreach (var address in addresses)
+            // Каждому узлу отправляем ЕГО СОБСТВЕННЫЙ диапазон — это и есть декомпозиция задачи
+            foreach (var a in assignments)
             {
                 try
                 {
                     var response = await _http.PostAsJsonAsync(
-                        $"{address}/api/start", new StartRequest(totalIterations), _cts.Token);
+                        $"{a.Address}/api/start", new StartRequest(a.Start, a.Count), _cts.Token);
                     response.EnsureSuccessStatusCode();
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Не удалось запустить расчёт на узле:\n{address}\n\n{ex.Message}",
+                    MessageBox.Show($"Не удалось отправить задание на узел:\n{a.Address}\n\n{ex.Message}",
                         "Ошибка подключения", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
 
-            SetStatus("Выполняется расчёт...", Color.SeaGreen);
+            SetStatus("Выполняется распределённый расчёт...", Color.SeaGreen);
 
             try
             {
-                await PollLoop(addresses, intervalSec, _cts.Token);
+                await PollLoop(assignments.Select(a => a.Address).ToList(), totalIterations, intervalSec, _cts.Token);
             }
             catch (OperationCanceledException)
             {
-                // расчёт остановлен пользователем — это штатная ситуация
+                // расчёт остановлен пользователем — штатная ситуация
             }
 
             SetStatus("Остановлено", Color.Gray);
@@ -92,7 +108,6 @@ namespace PiClient
             SetStatus("Остановка узлов...", Color.Gray);
             _cts?.Cancel();
 
-            // Рассылаем команду остановки всем узлам, которые участвовали в расчёте
             foreach (var address in _rows.Keys)
             {
                 try { await _http.PostAsync($"{address}/api/stop", content: null); }
@@ -100,9 +115,31 @@ namespace PiClient
             }
         }
 
+        // ───────────────────────── Деление диапазона на части ─────────────────────────
+
+        // Делит [0 .. total) на `parts` непересекающихся последовательных кусков максимально
+        // равного размера. Остаток от деления распределяется по одному члену на первые куски,
+        // чтобы суммарно куски точно покрывали весь диапазон без пропусков и наложений.
+        private static List<(long Start, long Count)> SplitRange(long total, int parts)
+        {
+            var result = new List<(long, long)>(parts);
+            long baseSize = total / parts;
+            long remainder = total % parts;
+            long cursor = 0;
+
+            for (int i = 0; i < parts; i++)
+            {
+                long size = baseSize + (i < remainder ? 1 : 0);
+                result.Add((cursor, size));
+                cursor += size;
+            }
+
+            return result;
+        }
+
         // ───────────────────────── Цикл периодического опроса ─────────────────────────
 
-        private async Task PollLoop(List<string> addresses, int intervalSeconds, CancellationToken ct)
+        private async Task PollLoop(List<string> addresses, long totalIterations, int intervalSeconds, CancellationToken ct)
         {
             while (!ct.IsCancellationRequested)
             {
@@ -117,7 +154,6 @@ namespace PiClient
                     }
                     catch
                     {
-                        // узел недоступен — показываем это в таблице и продолжаем опрос остальных
                         ShowNodeUnavailable(address);
                         everyNodeFinished = false;
                         continue;
@@ -125,17 +161,18 @@ namespace PiClient
 
                     if (status is null) continue;
 
-                    UpdateResultRow(address, isLeibniz: true, status.Leibniz);
-                    UpdateResultRow(address, isLeibniz: false, status.Nilakantha);
+                    _latestStatus[address] = status;
+                    UpdateResultRow(address, status);
 
                     if (status.IsRunning) everyNodeFinished = false;
                 }
 
-                RecalculateAverages();
+                // Складываем частичные суммы со всех узлов в одно общее значение π
+                RecalculateCombinedResult(totalIterations);
 
                 if (everyNodeFinished)
                 {
-                    SetStatus("Расчёт завершён на всех узлах", Color.SeaGreen);
+                    SetStatus("Распределённый расчёт завершён на всех узлах", Color.SeaGreen);
                     return;
                 }
 
@@ -153,78 +190,68 @@ namespace PiClient
                 .Distinct()
                 .ToList();
 
-        private void BuildResultRows(List<string> addresses)
+        private void BuildResultRows(List<(string Address, long Start, long Count)> assignments)
         {
             dgvResults.Rows.Clear();
             _rows.Clear();
 
-            foreach (var address in addresses)
+            foreach (var a in assignments)
             {
-                int leibnizIndex    = dgvResults.Rows.Add(address, "Лейбниц",            "—", "0,0");
-                int nilakanthaIndex = dgvResults.Rows.Add(address, "Нилаканта–Мадхава",  "—", "0,0");
-                _rows[address] = (dgvResults.Rows[leibnizIndex], dgvResults.Rows[nilakanthaIndex]);
+                string range = $"{a.Start:N0} — {a.Start + a.Count - 1:N0}  ({a.Count:N0} чл.)";
+                int index = dgvResults.Rows.Add(a.Address, range, "0", "0,0");
+                _rows[a.Address] = dgvResults.Rows[index];
             }
         }
 
-        private void UpdateResultRow(string address, bool isLeibniz, FormulaStatus formula)
+        private void UpdateResultRow(string address, NodeStatus status)
         {
-            if (!_rows.TryGetValue(address, out var pair)) return;
-            var row = isLeibniz ? pair.Leibniz : pair.Nilakantha;
+            if (!_rows.TryGetValue(address, out var row)) return;
 
-            row.Cells[2].Value = formula.Pi.ToString("F12");
-            row.Cells[3].Value = formula.Progress.ToString("F1");
+            row.Cells[2].Value = status.IterationsDone.ToString("N0");
+            row.Cells[3].Value = status.Progress.ToString("F1");
             row.DefaultCellStyle.ForeColor = dgvResults.ForeColor;
         }
 
         private void ShowNodeUnavailable(string address)
         {
-            if (!_rows.TryGetValue(address, out var pair)) return;
-            foreach (var row in new[] { pair.Leibniz, pair.Nilakantha })
-            {
-                row.Cells[2].Value = "узел недоступен";
-                row.Cells[3].Value = "—";
-                row.DefaultCellStyle.ForeColor = Color.Firebrick;
-            }
+            if (!_rows.TryGetValue(address, out var row)) return;
+
+            row.Cells[2].Value = "—";
+            row.Cells[3].Value = "узел недоступен";
+            row.DefaultCellStyle.ForeColor = Color.Firebrick;
         }
 
-        // Пересчитывает усреднённое по всем узлам/формулам значение π и общий прогресс
-        private void RecalculateAverages()
+        // Складывает частичные суммы рядов со всех узлов в одно общее значение π
+        // и обновляет общий прогресс по сумме реально посчитанных членов
+        private void RecalculateCombinedResult(long totalIterations)
         {
-            var piValues = new List<double>();
-            double progressSum = 0;
-            int progressCount = 0;
+            double leibnizSum = 0;
+            double nilakanthaSum = 0;
+            long doneTotal = 0;
 
-            foreach (var (leibniz, nilakantha) in _rows.Values)
+            foreach (var status in _latestStatus.Values)
             {
-                foreach (var row in new[] { leibniz, nilakantha })
-                {
-                    if (row.Cells[2].Value is string piText && double.TryParse(piText, out double pi))
-                        piValues.Add(pi);
-
-                    if (row.Cells[3].Value is string progressText && double.TryParse(progressText, out double progress))
-                    {
-                        progressSum += progress;
-                        progressCount++;
-                    }
-                }
+                leibnizSum    += status.LeibnizPartialSum;
+                nilakanthaSum += status.NilakanthaPartialSum;
+                doneTotal     += status.IterationsDone;
             }
 
-            if (piValues.Count > 0)
-                lblAveragePi.Text = $"Среднее значение π:  {piValues.Average():F12}   (по {piValues.Count} результатам)";
+            lblPi1.Text = $"π (Лейбниц, общий результат):    {leibnizSum:F12}";
+            lblPi2.Text = $"π (Нилаканта, общий результат):  {3.0 + nilakanthaSum:F12}";
 
-            if (progressCount > 0)
-                progressOverall.Value = (int)Math.Clamp(progressSum / progressCount, 0, 100);
+            if (totalIterations > 0)
+                progressOverall.Value = (int)Math.Clamp((double)doneTotal / totalIterations * 100, 0, 100);
         }
 
         // ───────────────────────── Вспомогательные методы интерфейса ─────────────────────────
 
         private void SetRunningState(bool isRunning)
         {
-            btnStart.Enabled       = !isRunning;
-            btnStop.Enabled        = isRunning;
-            txtAddresses.Enabled   = !isRunning;
-            numIterations.Enabled  = !isRunning;
-            numInterval.Enabled    = !isRunning;
+            btnStart.Enabled      = !isRunning;
+            btnStop.Enabled       = isRunning;
+            txtAddresses.Enabled  = !isRunning;
+            numIterations.Enabled = !isRunning;
+            numInterval.Enabled   = !isRunning;
         }
 
         private void SetStatus(string text, Color color)
@@ -236,7 +263,18 @@ namespace PiClient
 
     // ════════════════════ Модели обмена данными (должны совпадать с сервером) ════════════════════
 
-    public record StartRequest(long TotalIterations);
-    public record FormulaStatus(double Pi, double Progress, long IterationsDone);
-    public record NodeStatus(bool IsRunning, long TotalIterations, FormulaStatus Leibniz, FormulaStatus Nilakantha);
+    // Задание узлу: посчитать члены ряда с индексами [RangeStart .. RangeStart + RangeCount)
+    public record StartRequest(long RangeStart, long RangeCount);
+
+    // Статус узла: его диапазон, сколько уже посчитано, и ЧАСТИЧНЫЕ суммы по обеим формулам
+    // (это не значения π, а вклад только этого узла — итоговое π координатор получает,
+    // складывая частичные суммы со всех узлов)
+    public record NodeStatus(
+        bool IsRunning,
+        long RangeStart,
+        long RangeCount,
+        long IterationsDone,
+        double Progress,
+        double LeibnizPartialSum,
+        double NilakanthaPartialSum);
 }

@@ -34,12 +34,13 @@ namespace PiClient
             this.lblStatus = new System.Windows.Forms.Label();
             this.lblCores = new System.Windows.Forms.Label();
             this.progressOverall = new System.Windows.Forms.ProgressBar();
-            this.lblAveragePi = new System.Windows.Forms.Label();
+            this.lblPi1 = new System.Windows.Forms.Label();
+            this.lblPi2 = new System.Windows.Forms.Label();
             this.lblReference = new System.Windows.Forms.Label();
             this.dgvResults = new System.Windows.Forms.DataGridView();
             this.colAddress = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.colFormula = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.colPi = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.colRange = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.colDone = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.colProgress = new System.Windows.Forms.DataGridViewTextBoxColumn();
             ((System.ComponentModel.ISupportInitialize)(this.numIterations)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.numInterval)).BeginInit();
@@ -180,26 +181,36 @@ namespace PiClient
             this.progressOverall.Size = new System.Drawing.Size(546, 23);
             this.progressOverall.TabIndex = 10;
             //
-            // lblAveragePi
+            // lblPi1
             //
-            this.lblAveragePi.AutoSize = true;
-            this.lblAveragePi.Font = new System.Drawing.Font("Consolas", 11F, System.Drawing.FontStyle.Bold);
-            this.lblAveragePi.Location = new System.Drawing.Point(12, 163);
-            this.lblAveragePi.Name = "lblAveragePi";
-            this.lblAveragePi.Size = new System.Drawing.Size(186, 20);
-            this.lblAveragePi.TabIndex = 11;
-            this.lblAveragePi.Text = "Среднее значение π:  —";
+            this.lblPi1.AutoSize = true;
+            this.lblPi1.Font = new System.Drawing.Font("Consolas", 10F, System.Drawing.FontStyle.Bold);
+            this.lblPi1.Location = new System.Drawing.Point(12, 163);
+            this.lblPi1.Name = "lblPi1";
+            this.lblPi1.Size = new System.Drawing.Size(300, 19);
+            this.lblPi1.TabIndex = 11;
+            this.lblPi1.Text = "π (Лейбниц, общий результат):    —";
+            //
+            // lblPi2
+            //
+            this.lblPi2.AutoSize = true;
+            this.lblPi2.Font = new System.Drawing.Font("Consolas", 10F, System.Drawing.FontStyle.Bold);
+            this.lblPi2.Location = new System.Drawing.Point(12, 186);
+            this.lblPi2.Name = "lblPi2";
+            this.lblPi2.Size = new System.Drawing.Size(300, 19);
+            this.lblPi2.TabIndex = 12;
+            this.lblPi2.Text = "π (Нилаканта, общий результат):  —";
             //
             // lblReference
             //
             this.lblReference.AutoSize = true;
             this.lblReference.Font = new System.Drawing.Font("Consolas", 9F);
             this.lblReference.ForeColor = System.Drawing.Color.Gray;
-            this.lblReference.Location = new System.Drawing.Point(12, 188);
+            this.lblReference.Location = new System.Drawing.Point(12, 209);
             this.lblReference.Name = "lblReference";
             this.lblReference.Size = new System.Drawing.Size(295, 15);
-            this.lblReference.TabIndex = 12;
-            this.lblReference.Text = "π (эталон):          3.14159265358979323846...";
+            this.lblReference.TabIndex = 13;
+            this.lblReference.Text = "π (эталон):                      3.14159265358979323846...";
             //
             // dgvResults
             //
@@ -210,36 +221,36 @@ namespace PiClient
             | System.Windows.Forms.AnchorStyles.Right)));
             this.dgvResults.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
             this.colAddress,
-            this.colFormula,
-            this.colPi,
+            this.colRange,
+            this.colDone,
             this.colProgress});
-            this.dgvResults.Location = new System.Drawing.Point(12, 213);
+            this.dgvResults.Location = new System.Drawing.Point(12, 234);
             this.dgvResults.Name = "dgvResults";
             this.dgvResults.ReadOnly = true;
             this.dgvResults.RowHeadersVisible = false;
-            this.dgvResults.Size = new System.Drawing.Size(660, 300);
-            this.dgvResults.TabIndex = 13;
+            this.dgvResults.Size = new System.Drawing.Size(660, 279);
+            this.dgvResults.TabIndex = 14;
             //
             // colAddress
             //
             this.colAddress.HeaderText = "Адрес узла";
             this.colAddress.Name = "colAddress";
             this.colAddress.ReadOnly = true;
-            this.colAddress.Width = 180;
+            this.colAddress.Width = 170;
             //
-            // colFormula
+            // colRange
             //
-            this.colFormula.HeaderText = "Формула";
-            this.colFormula.Name = "colFormula";
-            this.colFormula.ReadOnly = true;
-            this.colFormula.Width = 150;
+            this.colRange.HeaderText = "Назначенный диапазон членов ряда";
+            this.colRange.Name = "colRange";
+            this.colRange.ReadOnly = true;
+            this.colRange.Width = 230;
             //
-            // colPi
+            // colDone
             //
-            this.colPi.HeaderText = "Текущее значение π";
-            this.colPi.Name = "colPi";
-            this.colPi.ReadOnly = true;
-            this.colPi.Width = 220;
+            this.colDone.HeaderText = "Посчитано членов";
+            this.colDone.Name = "colDone";
+            this.colDone.ReadOnly = true;
+            this.colDone.Width = 150;
             //
             // colProgress
             //
@@ -255,7 +266,8 @@ namespace PiClient
             this.ClientSize = new System.Drawing.Size(684, 525);
             this.Controls.Add(this.dgvResults);
             this.Controls.Add(this.lblReference);
-            this.Controls.Add(this.lblAveragePi);
+            this.Controls.Add(this.lblPi2);
+            this.Controls.Add(this.lblPi1);
             this.Controls.Add(this.progressOverall);
             this.Controls.Add(this.lblCores);
             this.Controls.Add(this.lblStatus);
@@ -291,12 +303,13 @@ namespace PiClient
         private System.Windows.Forms.Label lblStatus;
         private System.Windows.Forms.Label lblCores;
         private System.Windows.Forms.ProgressBar progressOverall;
-        private System.Windows.Forms.Label lblAveragePi;
+        private System.Windows.Forms.Label lblPi1;
+        private System.Windows.Forms.Label lblPi2;
         private System.Windows.Forms.Label lblReference;
         private System.Windows.Forms.DataGridView dgvResults;
         private System.Windows.Forms.DataGridViewTextBoxColumn colAddress;
-        private System.Windows.Forms.DataGridViewTextBoxColumn colFormula;
-        private System.Windows.Forms.DataGridViewTextBoxColumn colPi;
+        private System.Windows.Forms.DataGridViewTextBoxColumn colRange;
+        private System.Windows.Forms.DataGridViewTextBoxColumn colDone;
         private System.Windows.Forms.DataGridViewTextBoxColumn colProgress;
     }
 }
