@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -26,6 +27,9 @@ namespace PiDispatcher
 
         private CancellationTokenSource? _cts;
 
+        private readonly Stopwatch _stopwatch = new();
+        private readonly System.Windows.Forms.Timer _elapsedTimer = new() { Interval = 500 };
+
         // Строка таблицы для каждого воркера (по адресу)
         private readonly Dictionary<string, DataGridViewRow> _rows = new();
 
@@ -36,6 +40,11 @@ namespace PiDispatcher
         {
             InitializeComponent();
             lblCores.Text = $"Ядер CPU: {Environment.ProcessorCount}";
+            _elapsedTimer.Tick += (_, _) =>
+            {
+                var t = _stopwatch.Elapsed;
+                lblElapsed.Text = $"{(int)t.TotalHours:D2}:{t.Minutes:D2}:{t.Seconds:D2}";
+            };
         }
 
         // ───────────────────────── Кнопка "Старт" ─────────────────────────
@@ -67,6 +76,8 @@ namespace PiDispatcher
             lblPi2.Text = "π (Нилаканта, общий результат):  —";
 
             _cts = new CancellationTokenSource();
+            _stopwatch.Restart();
+            _elapsedTimer.Start();
             SetRunningState(isRunning: true);
             SetStatus("Раздача диапазонов воркерам...", Color.DarkOrange);
 
@@ -97,6 +108,8 @@ namespace PiDispatcher
                 // расчёт остановлен пользователем — штатная ситуация
             }
 
+            _stopwatch.Stop();
+            _elapsedTimer.Stop();
             SetStatus("Остановлено", Color.Gray);
             SetRunningState(isRunning: false);
         }

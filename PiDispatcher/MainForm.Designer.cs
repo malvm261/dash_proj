@@ -33,6 +33,7 @@ namespace PiDispatcher
             this.btnStop = new System.Windows.Forms.Button();
             this.lblStatus = new System.Windows.Forms.Label();
             this.lblCores = new System.Windows.Forms.Label();
+            this.lblElapsed = new System.Windows.Forms.Label();
             this.progressOverall = new System.Windows.Forms.ProgressBar();
             this.lblPi1 = new System.Windows.Forms.Label();
             this.lblPi2 = new System.Windows.Forms.Label();
@@ -174,6 +175,17 @@ namespace PiDispatcher
             this.lblCores.TabIndex = 9;
             this.lblCores.Text = "Ядер CPU: —";
             //
+            // lblElapsed
+            //
+            this.lblElapsed.AutoSize = true;
+            this.lblElapsed.Font = new System.Drawing.Font("Consolas", 10F, System.Drawing.FontStyle.Bold);
+            this.lblElapsed.ForeColor = System.Drawing.Color.SteelBlue;
+            this.lblElapsed.Location = new System.Drawing.Point(576, 100);
+            this.lblElapsed.Name = "lblElapsed";
+            this.lblElapsed.Size = new System.Drawing.Size(100, 19);
+            this.lblElapsed.TabIndex = 15;
+            this.lblElapsed.Text = "00:00:00";
+            //
             // progressOverall
             //
             this.progressOverall.Location = new System.Drawing.Point(12, 130);
@@ -269,6 +281,7 @@ namespace PiDispatcher
             this.Controls.Add(this.lblPi2);
             this.Controls.Add(this.lblPi1);
             this.Controls.Add(this.progressOverall);
+            this.Controls.Add(this.lblElapsed);
             this.Controls.Add(this.lblCores);
             this.Controls.Add(this.lblStatus);
             this.Controls.Add(this.btnStop);
@@ -302,6 +315,7 @@ namespace PiDispatcher
         private System.Windows.Forms.Button btnStop;
         private System.Windows.Forms.Label lblStatus;
         private System.Windows.Forms.Label lblCores;
+        private System.Windows.Forms.Label lblElapsed;
         private System.Windows.Forms.ProgressBar progressOverall;
         private System.Windows.Forms.Label lblPi1;
         private System.Windows.Forms.Label lblPi2;
